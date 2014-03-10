@@ -7,15 +7,18 @@ module Carnivore
 
       attr_reader(
         :lookupd, :http_transmit, :reader,
-        :writer, :topic, :channel, :reader_args
+        :writer, :topic, :channel, :reader_args,
+        :waiter, :producer_args
       )
 
       def setup(args={})
         @lookupd = args[:lookupd]
         @http_transmit = args[:http_transmit]
+        @producer_args = args[:producer]
         @topic = args[:topic]
         @channel = args[:channel] || 'default'
-        @reader_args = args[:reader_opts]
+        @reader_args = args[:reader_opts] || {}
+        @waiter = Celluloid::Condition.new
       end
 
       def connect
@@ -24,17 +27,21 @@ module Carnivore
             :nsqlookupd => lookupd,
             :topic => topic,
             :channel => channel,
-            :max_in_flight => 1
+            :max_in_flight => 1,
+            :notifier => waiter
           }.merge(reader_args)
           @reader = Krakow::Consumer.new(consumer_args)
           info "Reader connection for #{topic}:#{channel} established #{reader}"
         end
-        if(http_transmit)
+        if(producer_args)
+          @writer = Krakow::Producer.new(producer_args.merge(:topic => topic))
+          info "Producer TCP connection for #{topic} established #{writer}"
+        elsif(http_transmit)
           @writer = Krakow::Producer::Http.new(
             :endpoint => http_transmit,
             :topic => topic
           )
-          info "Producer connection for #{topic} established #{writer}"
+          info "Producer HTTP connection for #{topic} established #{writer}"
         end
       end
 
@@ -44,14 +51,18 @@ module Carnivore
       end
 
       def producer
-        reader || writer ||
+        writer ||
           abort('Producer is not established. No setup information provided!')
       end
 
       def receive(n=1)
+        if(consumer.queue.empty?)
+          waiter.wait
+        end
         msg = consumer.queue.pop
         begin
-          MultiJson.load(msg)
+          msg.message = MultiJson.load(msg.message)
+          msg
         rescue MultiJson::LoadError
           msg
         end
