@@ -5,6 +5,8 @@ module Carnivore
   class Source
     class Nsq < Source
 
+      DEFAULT_LOOKUPD_PATH = '/etc/carnivore/nsq.json'
+
       attr_reader(
         :lookupd, :http_transmit, :reader,
         :writer, :topic, :channel, :reader_args,
@@ -12,7 +14,7 @@ module Carnivore
       )
 
       def setup(args={})
-        @lookupd = args[:lookupd]
+        @lookupd = (default_lookupds + [args[:lookupd]]).flatten.compact.uniq
         @http_transmit = args[:http_transmit]
         @producer_args = args[:producer]
         @topic = args[:topic]
@@ -70,6 +72,21 @@ module Carnivore
 
       def confirm(message)
         consumer.confirm(message[:message])
+      end
+
+      private
+
+      def default_lookupds
+        json_path = args.fetch(:lookupd_file_path, DEFAULT_LOOKUPD_PATH)
+        lookupds = nil
+        if(File.exists?(json_path))
+          begin
+            lookupds = MultiJson.load(File.read(json_path), :symbolize_keys => true)[:lookupds]
+          rescue MultiJson::LoadError => e
+            error "Failed to load nsqlookupd file from system: #{e}"
+          end
+        end
+        lookupds || []
       end
 
     end
