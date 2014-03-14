@@ -19,6 +19,7 @@ module Carnivore
         @channel = args[:channel] || 'default'
         @reader_args = args[:reader_opts] || {}
         @waiter = Celluloid::Condition.new
+        Krakow::Utils::Logging.level = (Carnivore::Config.get(:krakow, :logging, :level) || :info).to_sym
       end
 
       def connect
@@ -60,20 +61,15 @@ module Carnivore
           waiter.wait
         end
         msg = consumer.queue.pop
-        begin
-          msg.message = MultiJson.load(msg.message)
-          msg
-        rescue MultiJson::LoadError
-          msg
-        end
       end
 
       def transmit(payload, original=nil)
+        payload = MultiJson.dump(payload) unless payload.is_a?(String)
         producer.write(payload)
       end
 
       def confirm(message)
-        consumer.confirm(message)
+        consumer.confirm(message[:message])
       end
 
     end
