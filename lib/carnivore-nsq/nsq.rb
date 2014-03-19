@@ -10,10 +10,11 @@ module Carnivore
       attr_reader(
         :lookupd, :http_transmit, :reader,
         :writer, :topic, :channel, :reader_args,
-        :waiter, :producer_args
+        :waiter, :producer_args, :args
       )
 
       def setup(args={})
+        @args = args.dup
         @lookupd = (default_lookupds + [args[:lookupd]]).flatten.compact.uniq
         @http_transmit = args[:http_transmit]
         @producer_args = args[:producer]
