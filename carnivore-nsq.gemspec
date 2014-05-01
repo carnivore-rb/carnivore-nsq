@@ -9,6 +9,7 @@ Gem::Specification.new do |s|
   s.homepage = 'https://github.com/carnivore-rb/carnivore-nsq'
   s.description = 'Carnivore NSQ source'
   s.require_path = 'lib'
+  s.license = 'Apache 2.0'
   s.add_dependency 'carnivore', '>= 0.1.8'
   s.add_dependency 'krakow'
   s.files = Dir['**/*']
