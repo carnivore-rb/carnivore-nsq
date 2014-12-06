@@ -14,36 +14,44 @@ module Carnivore
       )
 
       def setup(args={})
-        @args = args.dup
+        @args = args.to_smash
         @lookupd = (default_lookupds + [args[:lookupd]]).flatten.compact.uniq
         @http_transmit = args[:http_transmit]
         @producer_args = args[:producer]
         @topic = args[:topic]
         @channel = args[:channel] || 'default'
-        @reader_args = args[:reader_opts] || {}
+        @reader_args = args[:reader_opts] || Smash.new
         @waiter = Celluloid::Condition.new
         Krakow::Utils::Logging.level = (Carnivore::Config.get(:krakow, :logging, :level) || :info).to_sym
       end
 
       def connect
-        if(lookupd)
-          consumer_args = {
+        unless(lookupd.empty?)
+          consumer_args = Smash.new(
             :nsqlookupd => lookupd,
             :topic => topic,
             :channel => channel,
             :max_in_flight => 1,
             :notifier => waiter
-          }.merge(reader_args)
+          ).merge(reader_args)
           @reader = Krakow::Consumer.new(consumer_args)
           info "Reader connection for #{topic}:#{channel} established #{reader}"
         end
         if(producer_args)
-          @writer = Krakow::Producer.new(producer_args.merge(:topic => topic))
+          @writer = Krakow::Producer.new(
+            producer_args.merge(
+              Smash.new(
+                :topic => topic
+              )
+            )
+          )
           info "Producer TCP connection for #{topic} established #{writer}"
         elsif(http_transmit)
           @writer = Krakow::Producer::Http.new(
-            :endpoint => http_transmit,
-            :topic => topic
+            Smash.new(
+              :endpoint => http_transmit,
+              :topic => topic
+            )
           )
           info "Producer HTTP connection for #{topic} established #{writer}"
         end
@@ -82,7 +90,9 @@ module Carnivore
         lookupds = nil
         if(File.exists?(json_path))
           begin
-            lookupds = MultiJson.load(File.read(json_path), :symbolize_keys => true)[:lookupds]
+            lookupds = MultiJson.load(
+              File.read(json_path)
+            ).to_smash[:lookupds]
           rescue MultiJson::LoadError => e
             error "Failed to load nsqlookupd file from system: #{e}"
           end
