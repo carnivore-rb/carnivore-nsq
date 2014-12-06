@@ -11,6 +11,6 @@ Gem::Specification.new do |s|
   s.require_path = 'lib'
   s.license = 'Apache 2.0'
   s.add_dependency 'carnivore', '>= 0.1.8'
-  s.add_dependency 'krakow'
+  s.add_dependency 'krakow', '>= 0.3.6'
   s.files = Dir['lib/**/*'] + %w(carnivore-nsq.gemspec README.md CHANGELOG.md CONTRIBUTING.md LICENSE)
 end
