@@ -5,6 +5,8 @@ module Carnivore
   class Source
     class Nsq < Source
 
+      trap_exit :consumer_failure
+
       DEFAULT_LOOKUPD_PATH = '/etc/carnivore/nsq.json'
 
       attr_reader(
@@ -25,18 +27,30 @@ module Carnivore
         Krakow::Utils::Logging.level = (Carnivore::Config.get(:krakow, :logging, :level) || :info).to_sym
       end
 
+      def consumer_failure
+        warn 'Consumer failure detected. Forcing termination and rebuilding.'
+        @reader.terminate
+        build_consumer
+        info "Consumer connection for #{topic}:#{channel} re-established #{reader}"
+      end
+
+      def build_consumer
+        consumer_args = Smash.new(
+          :nsqlookupd => lookupd,
+          :topic => topic,
+          :channel => channel,
+          :max_in_flight => args.fetch(:max_in_flight, 100),
+          :notifier => waiter
+        ).merge(reader_args)
+        @reader = Krakow::Consumer.new(consumer_args)
+        link @reader
+      end
+
       def connect
         unless(callbacks.empty?)
           unless(lookupd.empty?)
-            consumer_args = Smash.new(
-              :nsqlookupd => lookupd,
-              :topic => topic,
-              :channel => channel,
-              :max_in_flight => args.fetch(:max_in_flight, 100),
-              :notifier => waiter
-            ).merge(reader_args)
-            @reader = Krakow::Consumer.new(consumer_args)
-            info "Reader connection for #{topic}:#{channel} established #{reader}"
+            build_consumer
+            info "Consumer connection for #{topic}:#{channel} established #{reader}"
           end
         end
         if(producer_args)
