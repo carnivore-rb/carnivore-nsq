@@ -26,16 +26,18 @@ module Carnivore
       end
 
       def connect
-        unless(lookupd.empty?)
-          consumer_args = Smash.new(
-            :nsqlookupd => lookupd,
-            :topic => topic,
-            :channel => channel,
-            :max_in_flight => 1,
-            :notifier => waiter
-          ).merge(reader_args)
-          @reader = Krakow::Consumer.new(consumer_args)
-          info "Reader connection for #{topic}:#{channel} established #{reader}"
+        unless(callbacks.empty?)
+          unless(lookupd.empty?)
+            consumer_args = Smash.new(
+              :nsqlookupd => lookupd,
+              :topic => topic,
+              :channel => channel,
+              :max_in_flight => callbacks.map{|c| c.class.workers}.inject(&:+),
+              :notifier => waiter
+            ).merge(reader_args)
+            @reader = Krakow::Consumer.new(consumer_args)
+            info "Reader connection for #{topic}:#{channel} established #{reader}"
+          end
         end
         if(producer_args)
           @writer = Krakow::Producer.new(
