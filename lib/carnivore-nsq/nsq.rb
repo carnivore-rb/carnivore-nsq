@@ -32,7 +32,7 @@ module Carnivore
               :nsqlookupd => lookupd,
               :topic => topic,
               :channel => channel,
-              :max_in_flight => callbacks.map{|c| c.class.workers}.inject(&:+),
+              :max_in_flight => args.fetch(:max_in_flight, 100),
               :notifier => waiter
             ).merge(reader_args)
             @reader = Krakow::Consumer.new(consumer_args)
