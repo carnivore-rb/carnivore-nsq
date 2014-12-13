@@ -1,3 +1,6 @@
+## v0.1.6
+* Link consumer to source. Auto rebuild consumer if death encountered.
+
 ## v0.1.4
 * Only start consumer if callbacks are registered
 * Update default max in flight and allow configuration from option
