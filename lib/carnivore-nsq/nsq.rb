@@ -28,10 +28,13 @@ module Carnivore
       end
 
       def consumer_failure
-        warn 'Consumer failure detected. Forcing termination and rebuilding.'
-        @reader.terminate
-        build_consumer
-        info "Consumer connection for #{topic}:#{channel} re-established #{reader}"
+        exclusive do
+          warn 'Consumer failure detected. Forcing termination and rebuilding.'
+          @reader.terminate
+          @reader = nil
+          build_consumer
+          info "Consumer connection for #{topic}:#{channel} re-established #{reader}"
+        end
       end
 
       def build_consumer
@@ -96,7 +99,11 @@ module Carnivore
       end
 
       def confirm(message)
-        consumer.confirm(message[:message])
+        begin
+          consumer.confirm(message[:message])
+        rescue Krakow::Error::LookupFailed => e
+          error "Failed to confirm payload from source! (#{e})"
+        end
       end
 
       private
