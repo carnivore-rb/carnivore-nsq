@@ -27,7 +27,7 @@ module Carnivore
         Krakow::Utils::Logging.level = (Carnivore::Config.get(:krakow, :logging, :level) || :info).to_sym
       end
 
-      def consumer_failure
+      def consumer_failure(*_)
         exclusive do
           warn 'Consumer failure detected. Forcing termination and rebuilding.'
           @reader.terminate
