@@ -127,9 +127,13 @@ module Carnivore
         begin
           unless(consumer.confirm(message[:message]))
             error "Failed to confirm payload from source! (#{e})"
+            false
+          else
+            true
           end
         rescue Krakow::Error::LookupFailed => e
           error "Failed to confirm payload from source! (#{e})"
+          false
         end
       end
 
@@ -138,7 +142,13 @@ module Carnivore
       # @param message [Carnivore::Message]
       # @return [TrueClass]
       def touch(message)
-        message[:message].touch
+        begin
+          message[:message].touch
+          true
+        rescue Krakow::Error::LookupFailed => e
+          error "Failed to touch payload from source! (#{e})"
+          false
+        end
       end
 
       private
