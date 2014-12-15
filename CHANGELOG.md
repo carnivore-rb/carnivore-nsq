@@ -1,3 +1,8 @@
+## v0.1.8
+* Do not rebuild consumer on general teardown
+* Log if message confirmation is not successful
+* Add Source#touch implementation
+
 ## v0.1.6
 * Link consumer to source. Auto rebuild consumer if death encountered.
 
