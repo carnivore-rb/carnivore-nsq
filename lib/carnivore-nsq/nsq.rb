@@ -100,7 +100,9 @@ module Carnivore
 
       def confirm(message)
         begin
-          consumer.confirm(message[:message])
+          unless(consumer.confirm(message[:message]))
+            error "Failed to confirm payload from source! (#{e})"
+          end
         rescue Krakow::Error::LookupFailed => e
           error "Failed to confirm payload from source! (#{e})"
         end
