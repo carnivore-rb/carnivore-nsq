@@ -138,7 +138,7 @@ module Carnivore
       # @param message [Carnivore::Message]
       # @return [TrueClass]
       def touch(message)
-        message.touch
+        message[:message].touch
       end
 
       private
