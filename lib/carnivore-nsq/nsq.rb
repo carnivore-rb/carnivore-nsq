@@ -7,6 +7,7 @@ module Carnivore
 
       trap_exit :consumer_failure
 
+      # @return [String] default path for global lookupd configuration
       DEFAULT_LOOKUPD_PATH = '/etc/carnivore/nsq.json'
 
       attr_reader(
@@ -15,6 +16,9 @@ module Carnivore
         :waiter, :producer_args, :args
       )
 
+      # Setup the source
+      #
+      # @param args [Hash] setup arguments
       def setup(args={})
         @args = args.to_smash
         @lookupd = (default_lookupds + [args[:lookupd]]).flatten.compact.uniq
@@ -27,16 +31,23 @@ module Carnivore
         Krakow::Utils::Logging.level = (Carnivore::Config.get(:krakow, :logging, :level) || :info).to_sym
       end
 
-      def consumer_failure(*_)
-        exclusive do
-          warn 'Consumer failure detected. Forcing termination and rebuilding.'
-          @reader.terminate
-          @reader = nil
-          build_consumer
-          info "Consumer connection for #{topic}:#{channel} re-established #{reader}"
+      # Process linked failure
+      #
+      # @param obj [Celluloid::Actor] failed actor
+      # @param exception [Exception] actor exception
+      def consumer_failure(obj, exception)
+        if(exception)
+          exclusive do
+            warn 'Consumer failure detected. Forcing termination and rebuilding.'
+            @reader.terminate
+            @reader = nil
+            build_consumer
+            info "Consumer connection for #{topic}:#{channel} re-established #{reader}"
+          end
         end
       end
 
+      # Build the consumer connection
       def build_consumer
         consumer_args = Smash.new(
           :nsqlookupd => lookupd,
@@ -49,6 +60,7 @@ module Carnivore
         link @reader
       end
 
+      # Establish required connections (producer/consumer)
       def connect
         unless(callbacks.empty?)
           unless(lookupd.empty?)
@@ -76,28 +88,41 @@ module Carnivore
         end
       end
 
+      # @return [Krakow::Consumer]
       def consumer
         reader ||
           abort('Consumer is not established. No setup information provided!')
       end
 
+      # @return [Krakow::Consumer, Krakow::Consumer::Http]
       def producer
         writer ||
           abort('Producer is not established. No setup information provided!')
       end
 
-      def receive(n=1)
+      # Receive messages
+      #
+      # @return [String]
+      def receive(*_)
         if(consumer.queue.empty?)
           waiter.wait
         end
         msg = consumer.queue.pop
       end
 
+      # Send message
+      #
+      # @param payload [Object]
+      # @param original [Carnivore::Message
       def transmit(payload, original=nil)
         payload = MultiJson.dump(payload) unless payload.is_a?(String)
         producer.write(payload)
       end
 
+      # Confirm completion of message
+      #
+      # @param message [Carnivore::Message]
+      # @return [TrueClass, FalseClass]
       def confirm(message)
         begin
           unless(consumer.confirm(message[:message]))
@@ -108,8 +133,17 @@ module Carnivore
         end
       end
 
+      # Touch message to extend lifetime
+      #
+      # @param message [Carnivore::Message]
+      # @return [TrueClass]
+      def touch(message)
+        message.touch
+      end
+
       private
 
+      # @return [Array<String>] default lookupd locations
       def default_lookupds
         json_path = args.fetch(:lookupd_file_path, DEFAULT_LOOKUPD_PATH)
         lookupds = nil
