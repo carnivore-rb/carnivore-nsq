@@ -1,3 +1,7 @@
+## v0.1.10
+* Clean up exit trapping implementation
+* Suppress exception errors on touch/lookup
+
 ## v0.1.8
 * Do not rebuild consumer on general teardown
 * Log if message confirmation is not successful
