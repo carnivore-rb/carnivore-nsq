@@ -5,7 +5,7 @@ module Carnivore
   class Source
     class Nsq < Source
 
-      trap_exit :consumer_failure
+      trap_exit :trapper
 
       # @return [String] default path for global lookupd configuration
       DEFAULT_LOOKUPD_PATH = '/etc/carnivore/nsq.json'
@@ -31,18 +31,37 @@ module Carnivore
         Krakow::Utils::Logging.level = (Carnivore::Config.get(:krakow, :logging, :level) || :info).to_sym
       end
 
-      # Process linked failure
+      # Recover from exit if unexpected or tear down conenctions if requested
       #
       # @param obj [Celluloid::Actor] failed actor
       # @param exception [Exception] actor exception
-      def consumer_failure(obj, exception)
+      def trapper(obj, exception)
         if(exception)
           exclusive do
             warn 'Consumer failure detected. Forcing termination and rebuilding.'
-            @reader.terminate
+            begin
+              @reader.terminate
+            rescue => e
+              warn "Consumer error suppressed on termination: #{e.class} - #{e}"
+            end
             @reader = nil
             build_consumer
             info "Consumer connection for #{topic}:#{channel} re-established #{reader}"
+          end
+        else
+          if(@reader)
+            begin
+              @reader.terminate
+            rescue => e
+              warn "Consumer error suppressed on termination: #{e.class} - #{e}"
+            end
+          end
+          if(@writer)
+            begin
+              @writer.terminate
+            rescue => e
+              warn "Producer error suppressed on termination: #{e.class} - #{e}"
+            end
           end
         end
       end
