@@ -1,3 +1,6 @@
+## v0.1.12
+* Add better connection recovery support
+
 ## v0.1.10
 * Clean up exit trapping implementation
 * Suppress exception errors on touch/lookup
