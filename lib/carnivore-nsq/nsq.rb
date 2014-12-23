@@ -38,31 +38,22 @@ module Carnivore
       def trapper(obj, exception)
         if(exception)
           exclusive do
-            warn 'Consumer failure detected. Forcing termination and rebuilding.'
-            begin
-              @reader.terminate
-            rescue => e
-              warn "Consumer error suppressed on termination: #{e.class} - #{e}"
+            if(@reader && !@reader.alive?)
+              warn 'Consumer failure detected. Rebuilding.'
+              @reader = nil
+              build_consumer
+              info "Consumer connection for #{topic}:#{channel} re-established #{reader}"
             end
-            @reader = nil
-            build_consumer
-            info "Consumer connection for #{topic}:#{channel} re-established #{reader}"
+            unless(@writer.alive?)
+              warn 'Producer failure detected. Rebuilding.'
+              @writer = nil
+              build_producer
+              info "Producer connection for #{topic} re-established #{writer}"
+            end
           end
         else
-          if(@reader)
-            begin
-              @reader.terminate
-            rescue => e
-              warn "Consumer error suppressed on termination: #{e.class} - #{e}"
-            end
-          end
-          if(@writer)
-            begin
-              @writer.terminate
-            rescue => e
-              warn "Producer error suppressed on termination: #{e.class} - #{e}"
-            end
-          end
+          @writer.terminate if @writer.alive?
+          @reader.terminate if @reader.alive?
         end
       end
 
@@ -79,14 +70,8 @@ module Carnivore
         link @reader
       end
 
-      # Establish required connections (producer/consumer)
-      def connect
-        unless(callbacks.empty?)
-          unless(lookupd.empty?)
-            build_consumer
-            info "Consumer connection for #{topic}:#{channel} established #{reader}"
-          end
-        end
+      # Build the producer connection
+      def build_producer
         if(producer_args)
           @writer = Krakow::Producer.new(
             producer_args.merge(
@@ -96,6 +81,7 @@ module Carnivore
             )
           )
           info "Producer TCP connection for #{topic} established #{writer}"
+          link @writer
         elsif(http_transmit)
           @writer = Krakow::Producer::Http.new(
             Smash.new(
@@ -104,7 +90,19 @@ module Carnivore
             )
           )
           info "Producer HTTP connection for #{topic} established #{writer}"
+          link @writer
         end
+      end
+
+      # Establish required connections (producer/consumer)
+      def connect
+        unless(callbacks.empty?)
+          unless(lookupd.empty?)
+            build_consumer
+            info "Consumer connection for #{topic}:#{channel} established #{reader}"
+          end
+        end
+        build_producer
       end
 
       # @return [Krakow::Consumer]
