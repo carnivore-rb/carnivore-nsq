@@ -121,10 +121,7 @@ module Carnivore
       #
       # @return [String]
       def receive(*_)
-        if(consumer.queue.empty?)
-          waiter.wait
-        end
-        msg = consumer.queue.pop
+        Celluloid::Future.new{ consumer.queue.pop }.value
       end
 
       # Send message
