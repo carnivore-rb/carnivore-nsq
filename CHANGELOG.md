@@ -1,3 +1,6 @@
+## v0.1.14
+* Wrap message fetching within future
+
 ## v0.1.12
 * Add better connection recovery support
 
