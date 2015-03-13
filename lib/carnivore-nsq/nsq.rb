@@ -135,7 +135,12 @@ module Carnivore
       # @return [String]
       def receive(*_)
         msg = Celluloid::Future.new{ consumer.queue.pop }.value
-        {:raw => msg, :content => msg.message}
+        begin
+          content = MultiJson.load(msg.message)
+        rescue MultiJson::ParseError
+          content = msg.message
+        end
+        {:raw => msg, :content => content}
       end
 
       # Send message
