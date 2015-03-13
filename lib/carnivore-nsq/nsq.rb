@@ -57,14 +57,27 @@ module Carnivore
         end
       end
 
+      # Clean up custom actors on teardown
+      def teardown_cleanup
+        [reader, writer].each do |r_con|
+          if(r_con && r_con.alive?)
+            begin
+              r_con.terminate
+            rescue Celluloid::Task::TerminatedError
+              warn 'Terminated task error when cleaning NSQ connections. Moving on.'
+            end
+          end
+        end
+        super
+      end
+
       # Build the consumer connection
       def build_consumer
         consumer_args = Smash.new(
           :nsqlookupd => lookupd,
           :topic => topic,
           :channel => channel,
-          :max_in_flight => args.fetch(:max_in_flight, 100),
-          :notifier => waiter
+          :max_in_flight => args.fetch(:max_in_flight, 100)
         ).merge(reader_args)
         @reader = Krakow::Consumer.new(consumer_args)
         link @reader
@@ -121,7 +134,8 @@ module Carnivore
       #
       # @return [String]
       def receive(*_)
-        Celluloid::Future.new{ consumer.queue.pop }.value
+        msg = Celluloid::Future.new{ consumer.queue.pop }.value
+        {:raw => msg, :content => msg.message}
       end
 
       # Send message
