@@ -1,3 +1,6 @@
+## v0.1.16
+* Properly support pre-extracted message content
+
 ## v0.1.14
 * Wrap message fetching within future
 
